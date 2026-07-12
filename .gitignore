@@ -1,0 +1,41 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Build
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Certificates
+*.pem
+*.key
+*.crt
+cert/
+
+# Uploads
+uploads/
+
+# PM2
+.pm2/
+
+# Debug scripts
+check-*.js
+fix-*.js

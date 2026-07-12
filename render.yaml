@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: sistema-agua-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      - key: PORT
+        value: 3001
+
+  - type: web
+    name: sistema-agua-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_URL
+        fromService:
+          name: sistema-agua-backend
+          type: web
+          property: url
+      - key: NEXT_PUBLIC_API_URL
+        value: /api
