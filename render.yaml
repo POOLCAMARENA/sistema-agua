@@ -27,9 +27,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: API_URL
-        fromService:
-          name: sistema-agua-backend
-          type: web
-          property: url
+        sync: false
       - key: NEXT_PUBLIC_API_URL
         value: /api
