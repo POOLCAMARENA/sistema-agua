@@ -3,6 +3,7 @@ services:
     name: sistema-agua-backend
     runtime: node
     rootDir: backend
+    plan: free
     buildCommand: npm install
     startCommand: node src/server.js
     envVars:
@@ -21,6 +22,7 @@ services:
     name: sistema-agua-frontend
     runtime: node
     rootDir: frontend
+    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
