@@ -109,13 +109,6 @@ export default function ClientesPage() {
         setValue('ubicacion', `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`);
       },
       (err) => {
-        let msg = 'No se pudo obtener la ubicación.';
-        if (err.code === 1) msg = 'Permiso de ubicación denegado. Actívalo en la configuración del navegador.';
-        else if (err.code === 2) msg = 'Señal GPS no disponible. Intenta en un lugar abierto.';
-        else if (err.code === 3) msg = 'Tiempo de espera agotado. Intenta de nuevo.';
-        else msg += ' Verifica que el GPS esté activado.';
-        if (location.protocol !== 'https:' && location.hostname !== 'localhost') msg += ' Nota: la geolocalización requiere HTTPS en dispositivos móviles.';
-        alert(msg);
         setGpsLoading(false);
       },
       { enableHighAccuracy: false, timeout: 30000 }
