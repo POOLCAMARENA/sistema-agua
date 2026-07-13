@@ -95,7 +95,10 @@ export default function ClientesPage() {
     input.click();
   };
 
-  const capturarGPS = () => {
+  const [showGPSConfirm, setShowGPSConfirm] = useState(false);
+
+  const confirmarCapturaGPS = () => {
+    setShowGPSConfirm(false);
     if (!navigator.geolocation) {
       alert('GPS no disponible en este navegador');
       return;
@@ -109,10 +112,19 @@ export default function ClientesPage() {
         setValue('ubicacion', `https://www.google.com/maps?q=${pos.coords.latitude},${pos.coords.longitude}`);
       },
       (err) => {
+        let msg = 'No se pudo obtener la ubicación.';
+        if (err.code === 1) msg = 'Permiso de ubicación denegado. Puedes ingresar las coordenadas manualmente.';
+        else if (err.code === 2) msg = 'Señal GPS no disponible. Intenta en un lugar abierto.';
+        else if (err.code === 3) msg = 'Tiempo de espera agotado. Intenta de nuevo.';
+        alert(msg);
         setGpsLoading(false);
       },
-      { enableHighAccuracy: false, timeout: 30000 }
+      { enableHighAccuracy: true, timeout: 15000 }
     );
+  };
+
+  const capturarGPS = () => {
+    setShowGPSConfirm(true);
   };
 
   const onSubmit = async (data: ClienteFormData) => {
@@ -487,6 +499,36 @@ export default function ClientesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showGPSConfirm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-green-50 rounded-lg">
+                <Navigation className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Capturar Ubicación</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              ¿Deseas permitir que el sistema capture tu ubicación GPS actual para registrar las coordenadas del cliente?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowGPSConfirm(false)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarCapturaGPS}
+                className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Sí, capturar
+              </button>
+            </div>
           </div>
         </div>
       )}
