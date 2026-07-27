@@ -165,6 +165,45 @@ class BidonCliente {
     `);
     return result.rows[0];
   }
+
+  static async actualizar(cliente_id, datos) {
+    const { bidones_entregados, bidones_retornados, bidones_perdidos } = datos;
+    const entregados = bidones_entregados ?? 0;
+    const retornados = bidones_retornados ?? 0;
+    const perdidos = bidones_perdidos ?? 0;
+    const saldo = entregados - retornados - perdidos;
+
+    if (saldo < 0) {
+      throw new Error('El saldo no puede ser negativo. Verifica los valores ingresados.');
+    }
+
+    const result = await pool.query(
+      `UPDATE bidones_cliente SET 
+        bidones_entregados = $1, 
+        bidones_retornados = $2, 
+        bidones_perdidos = $3, 
+        saldo_bidones = $4,
+        fecha_actualizacion = CURRENT_TIMESTAMP 
+      WHERE cliente_id = $5 RETURNING *`,
+      [entregados, retornados, perdidos, saldo, cliente_id]
+    );
+
+    if (!result.rows[0]) {
+      throw new Error('No hay registro de bidones para este cliente');
+    }
+    return result.rows[0];
+  }
+
+  static async eliminar(cliente_id) {
+    const result = await pool.query(
+      'DELETE FROM bidones_cliente WHERE cliente_id = $1 RETURNING *',
+      [cliente_id]
+    );
+    if (!result.rows[0]) {
+      throw new Error('No hay registro de bidones para este cliente');
+    }
+    return result.rows[0];
+  }
 }
 
 module.exports = BidonCliente;

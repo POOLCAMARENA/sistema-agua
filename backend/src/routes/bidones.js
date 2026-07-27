@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const BidonCliente = require('../models/bidonCliente');
-const { auth, cajeroAuth } = require('../middleware/auth');
+const { auth, cajeroAuth, adminAuth } = require('../middleware/auth');
 
 // Listar bidones por cliente
 router.get('/', auth, async (req, res) => {
@@ -104,6 +104,33 @@ router.post('/cliente/:cliente_id/perdida', cajeroAuth, async (req, res) => {
   } catch (error) {
     console.error('Error al registrar pérdida:', error);
     res.status(500).json({ error: error.message || 'Error al registrar pérdida' });
+  }
+});
+
+// Actualizar registro de bidones (solo admin)
+router.put('/cliente/:cliente_id', adminAuth, async (req, res) => {
+  try {
+    const { bidones_entregados, bidones_retornados, bidones_perdidos } = req.body;
+    const bidon = await BidonCliente.actualizar(req.params.cliente_id, {
+      bidones_entregados,
+      bidones_retornados,
+      bidones_perdidos
+    });
+    res.json(bidon);
+  } catch (error) {
+    console.error('Error al actualizar registro:', error);
+    res.status(500).json({ error: error.message || 'Error al actualizar registro' });
+  }
+});
+
+// Eliminar registro de bidones (solo admin)
+router.delete('/cliente/:cliente_id', adminAuth, async (req, res) => {
+  try {
+    const bidon = await BidonCliente.eliminar(req.params.cliente_id);
+    res.json({ message: 'Registro eliminado correctamente', bidon });
+  } catch (error) {
+    console.error('Error al eliminar registro:', error);
+    res.status(500).json({ error: error.message || 'Error al eliminar registro' });
   }
 });
 

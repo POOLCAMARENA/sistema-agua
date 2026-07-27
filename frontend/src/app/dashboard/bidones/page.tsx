@@ -10,7 +10,14 @@ import {
   AlertTriangle,
   Search,
   RotateCcw,
+  Edit3,
+  Trash2,
+  Eye,
+  X,
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
+import { useAuthStore } from '@/lib/store';
 
 interface EstadisticasBidones {
   total_clientes_con_prestamo: number;
@@ -36,6 +43,25 @@ export default function BidonesPage() {
     cantidad: 1,
     submitting: false,
   });
+
+  const [editModal, setEditModal] = useState<{
+    open: boolean;
+    cliente: BidonCliente | null;
+    entregados: number;
+    retornados: number;
+    perdidos: number;
+    submitting: boolean;
+  }>({
+    open: false,
+    cliente: null,
+    entregados: 0,
+    retornados: 0,
+    perdidos: 0,
+    submitting: false,
+  });
+
+  const usuario = useAuthStore((s) => s.usuario);
+  const esAdmin = usuario?.rol === 'admin';
 
   const fetchData = useCallback(async () => {
     try {
@@ -90,6 +116,51 @@ export default function BidonesPage() {
       console.error(`Error registering ${modal.type}:`, err);
     } finally {
       setModal((prev) => ({ ...prev, submitting: false }));
+    }
+  };
+
+  const openEditModal = (bidon: BidonCliente) => {
+    setEditModal({
+      open: true,
+      cliente: bidon,
+      entregados: bidon.bidones_entregados,
+      retornados: bidon.bidones_retornados,
+      perdidos: bidon.bidones_perdidos,
+      submitting: false,
+    });
+  };
+
+  const closeEditModal = () => {
+    setEditModal({ open: false, cliente: null, entregados: 0, retornados: 0, perdidos: 0, submitting: false });
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editModal.cliente) return;
+    setEditModal((prev) => ({ ...prev, submitting: true }));
+
+    try {
+      await api.put(`/bidones/cliente/${editModal.cliente.cliente_id}`, {
+        bidones_entregados: editModal.entregados,
+        bidones_retornados: editModal.retornados,
+        bidones_perdidos: editModal.perdidos,
+      });
+      await fetchData();
+      closeEditModal();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Error al actualizar');
+    } finally {
+      setEditModal((prev) => ({ ...prev, submitting: false }));
+    }
+  };
+
+  const handleDelete = async (bidon: BidonCliente) => {
+    if (!confirm(`¿Eliminar el registro de bidones de ${bidon.cliente_nombre}? Esta acción no se puede deshacer.`)) return;
+
+    try {
+      await api.delete(`/bidones/cliente/${bidon.cliente_id}`);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Error al eliminar');
     }
   };
 
@@ -196,9 +267,21 @@ export default function BidonesPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{bidon.cliente_telefono}</td>
                     <td className="px-4 py-3 text-gray-600 hidden lg:table-cell max-w-[200px] truncate">{bidon.direccion}</td>
-                    <td className="px-4 py-3 text-center font-semibold text-green-600">{bidon.bidones_entregados}</td>
-                    <td className="px-4 py-3 text-center font-semibold text-blue-600">{bidon.bidones_retornados}</td>
-                    <td className="px-4 py-3 text-center font-semibold text-red-600">{bidon.bidones_perdidos}</td>
+                    <td className="px-4 py-3 text-center font-semibold text-green-600">
+                      <button onClick={() => openEditModal(bidon)} className="hover:underline cursor-pointer">
+                        {bidon.bidones_entregados}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center font-semibold text-blue-600">
+                      <button onClick={() => openEditModal(bidon)} className="hover:underline cursor-pointer">
+                        {bidon.bidones_retornados}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3 text-center font-semibold text-red-600">
+                      <button onClick={() => openEditModal(bidon)} className="hover:underline cursor-pointer">
+                        {bidon.bidones_perdidos}
+                      </button>
+                    </td>
                     <td className="px-4 py-3 text-center font-semibold">{bidon.saldo_bidones}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
@@ -223,6 +306,24 @@ export default function BidonesPage() {
                         >
                           <AlertTriangle className="w-4 h-4" />
                         </button>
+                        {esAdmin && (
+                          <>
+                            <button
+                              onClick={() => openEditModal(bidon)}
+                              className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors"
+                              title="Editar registro"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(bidon)}
+                              className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+                              title="Eliminar registro"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -291,6 +392,86 @@ export default function BidonesPage() {
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 )}
                 {modal.type === 'entrega' ? 'Registrar Entrega' : modal.type === 'retorno' ? 'Registrar Retorno' : 'Registrar Pérdida'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editModal.open && editModal.cliente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Edit3 className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Editar Registro</h3>
+                  <p className="text-sm text-gray-600">{editModal.cliente.cliente_nombre}</p>
+                </div>
+              </div>
+              <button onClick={closeEditModal} className="p-1 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bidones Entregados</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editModal.entregados}
+                  onChange={(e) => setEditModal((prev) => ({ ...prev, entregados: Math.max(0, parseInt(e.target.value) || 0) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bidones Retornados</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editModal.retornados}
+                  onChange={(e) => setEditModal((prev) => ({ ...prev, retornados: Math.max(0, parseInt(e.target.value) || 0) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bidones Perdidos</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editModal.perdidos}
+                  onChange={(e) => setEditModal((prev) => ({ ...prev, perdidos: Math.max(0, parseInt(e.target.value) || 0) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  <strong>Saldo calculado:</strong> {editModal.entregados - editModal.retornados - editModal.perdidos} bidones
+                  (Entregados - Retornados - Perdidos)
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-3 justify-end">
+              <button
+                onClick={closeEditModal}
+                disabled={editModal.submitting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleEditSubmit}
+                disabled={editModal.submitting}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {editModal.submitting && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                )}
+                Guardar Cambios
               </button>
             </div>
           </div>
