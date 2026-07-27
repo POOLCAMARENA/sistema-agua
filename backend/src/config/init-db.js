@@ -42,6 +42,22 @@ async function initDatabase() {
     await pool.query(`ALTER TABLE pagos DROP CONSTRAINT IF EXISTS pagos_tipo_pago_check`);
     await pool.query(`ALTER TABLE pagos ADD CONSTRAINT pagos_tipo_pago_check CHECK (tipo_pago IN ('efectivo', 'yape', 'transferencia', 'plin'))`);
     await pool.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS dias_plazo INTEGER DEFAULT 30`);
+    await pool.query(`ALTER TABLE pagos ADD COLUMN IF NOT EXISTS dias_plazo INTEGER DEFAULT 30`);
+
+    // Migraciones para movimientos de bidones
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS movimientos_bidones (
+        id SERIAL PRIMARY KEY,
+        cliente_id INTEGER REFERENCES clientes(id),
+        tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('entrega', 'retorno', 'perdida')),
+        cantidad INTEGER NOT NULL,
+        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        observaciones TEXT,
+        usuario_id INTEGER REFERENCES usuarios(id)
+      )
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_cliente ON movimientos_bidones(cliente_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_tipo ON movimientos_bidones(tipo)`);
 
     // Crear/actualizar usuarios con contraseña hasheada
     const bcrypt = require('bcryptjs');

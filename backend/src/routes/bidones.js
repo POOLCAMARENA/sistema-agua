@@ -69,7 +69,7 @@ router.post('/cliente/:cliente_id/entrega', cajeroAuth, async (req, res) => {
     if (!cantidad || cantidad <= 0) {
       return res.status(400).json({ error: 'La cantidad debe ser mayor a 0' });
     }
-    const bidon = await BidonCliente.registrarEntrega(req.params.cliente_id, cantidad);
+    const bidon = await BidonCliente.registrarEntrega(req.params.cliente_id, cantidad, req.user.id);
     res.json(bidon);
   } catch (error) {
     console.error('Error al registrar entrega:', error);
@@ -84,7 +84,7 @@ router.post('/cliente/:cliente_id/retorno', cajeroAuth, async (req, res) => {
     if (!cantidad || cantidad <= 0) {
       return res.status(400).json({ error: 'La cantidad debe ser mayor a 0' });
     }
-    const bidon = await BidonCliente.registrarRetorno(req.params.cliente_id, cantidad);
+    const bidon = await BidonCliente.registrarRetorno(req.params.cliente_id, cantidad, req.user.id);
     res.json(bidon);
   } catch (error) {
     console.error('Error al registrar retorno:', error);
@@ -99,11 +99,38 @@ router.post('/cliente/:cliente_id/perdida', cajeroAuth, async (req, res) => {
     if (!cantidad || cantidad <= 0) {
       return res.status(400).json({ error: 'La cantidad debe ser mayor a 0' });
     }
-    const bidon = await BidonCliente.registrarPerdida(req.params.cliente_id, cantidad);
+    const bidon = await BidonCliente.registrarPerdida(req.params.cliente_id, cantidad, req.user.id);
     res.json(bidon);
   } catch (error) {
     console.error('Error al registrar pérdida:', error);
     res.status(500).json({ error: error.message || 'Error al registrar pérdida' });
+  }
+});
+
+// Listar movimientos por tipo (entrega, retorno, perdida)
+router.get('/movimientos/:tipo', auth, async (req, res) => {
+  try {
+    const { tipo } = req.params;
+    const { fecha_inicio, fecha_fin } = req.query;
+    if (!['entrega', 'retorno', 'perdida'].includes(tipo)) {
+      return res.status(400).json({ error: 'Tipo de movimiento inválido' });
+    }
+    const movimientos = await BidonCliente.listarMovimientos(tipo, { fecha_inicio, fecha_fin });
+    res.json(movimientos);
+  } catch (error) {
+    console.error('Error al listar movimientos:', error);
+    res.status(500).json({ error: 'Error al listar movimientos' });
+  }
+});
+
+// Listar movimientos por cliente
+router.get('/cliente/:cliente_id/movimientos', auth, async (req, res) => {
+  try {
+    const movimientos = await BidonCliente.listarMovimientosPorCliente(req.params.cliente_id);
+    res.json(movimientos);
+  } catch (error) {
+    console.error('Error al listar movimientos:', error);
+    res.status(500).json({ error: 'Error al listar movimientos' });
   }
 });
 

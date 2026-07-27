@@ -6,6 +6,30 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
+const pool = require('./config/database');
+
+// Migraciones automáticas al iniciar
+async function runMigrations() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS movimientos_bidones (
+        id SERIAL PRIMARY KEY,
+        cliente_id INTEGER REFERENCES clientes(id),
+        tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('entrega', 'retorno', 'perdida')),
+        cantidad INTEGER NOT NULL,
+        fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        observaciones TEXT,
+        usuario_id INTEGER REFERENCES usuarios(id)
+      )
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_cliente ON movimientos_bidones(cliente_id)');
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_tipo ON movimientos_bidones(tipo)');
+    console.log('Migraciones ejecutadas correctamente');
+  } catch (error) {
+    console.error('Error ejecutando migraciones:', error);
+  }
+}
+
 // Crear directorio de uploads si no existe
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -65,9 +89,11 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-  console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+runMigrations().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+    console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  });
 });
 
 module.exports = app;

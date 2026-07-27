@@ -1,6 +1,13 @@
 const pool = require('../config/database');
 
 class BidonCliente {
+  static async registrarMovimiento(cliente_id, tipo, cantidad, usuario_id) {
+    await pool.query(
+      'INSERT INTO movimientos_bidones (cliente_id, tipo, cantidad, usuario_id) VALUES ($1, $2, $3, $4)',
+      [cliente_id, tipo, cantidad, usuario_id || null]
+    );
+  }
+
   static async crear(cliente_id) {
     const result = await pool.query(
       'INSERT INTO bidones_cliente (cliente_id, saldo_bidones) VALUES ($1, 0) RETURNING *',
@@ -17,7 +24,7 @@ class BidonCliente {
     return result.rows[0];
   }
 
-  static async registrarEntrega(cliente_id, cantidad) {
+  static async registrarEntrega(cliente_id, cantidad, usuario_id) {
     const client = await pool.connect();
     
     try {
@@ -41,6 +48,11 @@ class BidonCliente {
         );
       }
 
+      await client.query(
+        'INSERT INTO movimientos_bidones (cliente_id, tipo, cantidad, usuario_id) VALUES ($1, $2, $3, $4)',
+        [cliente_id, 'entrega', cantidad, usuario_id || null]
+      );
+
       await client.query('COMMIT');
       return bidonCliente.rows[0];
     } catch (error) {
@@ -51,7 +63,7 @@ class BidonCliente {
     }
   }
 
-  static async registrarRetorno(cliente_id, cantidad) {
+  static async registrarRetorno(cliente_id, cantidad, usuario_id) {
     const client = await pool.connect();
     
     try {
@@ -76,6 +88,11 @@ class BidonCliente {
         [cantidad, cliente_id]
       );
 
+      await client.query(
+        'INSERT INTO movimientos_bidones (cliente_id, tipo, cantidad, usuario_id) VALUES ($1, $2, $3, $4)',
+        [cliente_id, 'retorno', cantidad, usuario_id || null]
+      );
+
       await client.query('COMMIT');
       return resultado.rows[0];
     } catch (error) {
@@ -86,7 +103,7 @@ class BidonCliente {
     }
   }
 
-  static async registrarPerdida(cliente_id, cantidad) {
+  static async registrarPerdida(cliente_id, cantidad, usuario_id) {
     const client = await pool.connect();
     
     try {
@@ -109,6 +126,11 @@ class BidonCliente {
       const resultado = await client.query(
         'UPDATE bidones_cliente SET bidones_perdidos = bidones_perdidos + $1, saldo_bidones = saldo_bidones - $1, fecha_actualizacion = CURRENT_TIMESTAMP WHERE cliente_id = $2 RETURNING *',
         [cantidad, cliente_id]
+      );
+
+      await client.query(
+        'INSERT INTO movimientos_bidones (cliente_id, tipo, cantidad, usuario_id) VALUES ($1, $2, $3, $4)',
+        [cliente_id, 'perdida', cantidad, usuario_id || null]
       );
 
       await client.query('COMMIT');
@@ -203,6 +225,44 @@ class BidonCliente {
       throw new Error('No hay registro de bidones para este cliente');
     }
     return result.rows[0];
+  }
+
+  static async listarMovimientos(tipo, { fecha_inicio, fecha_fin } = {}) {
+    let query = `
+      SELECT mb.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono
+      FROM movimientos_bidones mb
+      JOIN clientes c ON mb.cliente_id = c.id
+      WHERE mb.tipo = $1
+    `;
+    const params = [tipo];
+    let idx = 2;
+
+    if (fecha_inicio) {
+      query += ` AND mb.fecha >= $${idx}`;
+      params.push(fecha_inicio);
+      idx++;
+    }
+    if (fecha_fin) {
+      query += ` AND mb.fecha <= $${idx}`;
+      params.push(fecha_fin);
+      idx++;
+    }
+
+    query += ' ORDER BY mb.fecha DESC';
+    const result = await pool.query(query, params);
+    return result.rows;
+  }
+
+  static async listarMovimientosPorCliente(cliente_id) {
+    const result = await pool.query(
+      `SELECT mb.*, c.nombre as cliente_nombre, c.telefono as cliente_telefono
+       FROM movimientos_bidones mb
+       JOIN clientes c ON mb.cliente_id = c.id
+       WHERE mb.cliente_id = $1
+       ORDER BY mb.fecha DESC`,
+      [cliente_id]
+    );
+    return result.rows;
   }
 }
 

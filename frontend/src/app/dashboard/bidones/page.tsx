@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, ReactNode } from 'react';
 import api from '@/lib/axios';
 import { BidonCliente } from '@/types';
 import {
@@ -62,6 +62,28 @@ export default function BidonesPage() {
 
   const usuario = useAuthStore((s) => s.usuario);
   const esAdmin = usuario?.rol === 'admin';
+
+  const [detalleTipo, setDetalleTipo] = useState<'entrega' | 'retorno' | 'perdida' | null>(null);
+  const [detalleMovimientos, setDetalleMovimientos] = useState<any[]>([]);
+  const [detalleLoading, setDetalleLoading] = useState(false);
+
+  const openDetalle = async (tipo: 'entrega' | 'retorno' | 'perdida') => {
+    setDetalleTipo(tipo);
+    setDetalleLoading(true);
+    try {
+      const res = await api.get(`/bidones/movimientos/${tipo}`);
+      setDetalleMovimientos(res.data);
+    } catch (err) {
+      console.error(`Error fetching ${tipo} movements:`, err);
+    } finally {
+      setDetalleLoading(false);
+    }
+  };
+
+  const closeDetalle = () => {
+    setDetalleTipo(null);
+    setDetalleMovimientos([]);
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -175,21 +197,31 @@ export default function BidonesPage() {
   const cards = [
     {
       label: 'Clientes con Préstamo',
-      value: estadisticas?.total_clientes_con_prestamo ?? bidones.length,
+      value: estadisticas?.total_clientes_con_prestamo ?? bidones.filter(b => b.saldo_bidones > 0).length,
       icon: Droplets,
       color: 'bg-blue-500',
+      tipo: null as const,
     },
     {
       label: 'Total Bidones Entregados',
       value: estadisticas?.total_bidones_entregados ?? bidones.reduce((s, b) => s + b.bidones_entregados, 0),
       icon: Plus,
       color: 'bg-green-500',
+      tipo: 'entrega' as const,
+    },
+    {
+      label: 'Total Bidones Retornados',
+      value: estadisticas?.total_bidones_retornados ?? bidones.reduce((s, b) => s + b.bidones_retornados, 0),
+      icon: RotateCcw,
+      color: 'bg-blue-500',
+      tipo: 'retorno' as const,
     },
     {
       label: 'Saldo Actual Total',
       value: estadisticas?.saldo_actual_total ?? bidones.reduce((s, b) => s + b.saldo_bidones, 0),
-      icon: RotateCcw,
+      icon: Droplets,
       color: 'bg-cyan-500',
+      tipo: null as const,
     },
   ];
 
@@ -200,11 +232,20 @@ export default function BidonesPage() {
         <p className="text-gray-600 mt-1">Control de préstamo y retorno de bidones</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {cards.map((card) => {
           const Icon = card.icon;
+          const CardWrapper = card.tipo ? ({ children }: { children: ReactNode }) => (
+            <button onClick={() => openDetalle(card.tipo!)} className="text-left w-full bg-white rounded-xl shadow-sm p-5 border border-gray-200 hover:border-blue-300 hover:shadow-md transition-all cursor-pointer">
+              {children}
+            </button>
+          ) : ({ children }: { children: ReactNode }) => (
+            <div className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
+              {children}
+            </div>
+          );
           return (
-            <div key={card.label} className="bg-white rounded-xl shadow-sm p-5 border border-gray-200">
+            <CardWrapper key={card.label}>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">{card.label}</p>
@@ -214,7 +255,7 @@ export default function BidonesPage() {
                   <Icon className="w-5 h-5 text-white" />
                 </div>
               </div>
-            </div>
+            </CardWrapper>
           );
         })}
       </div>
@@ -472,6 +513,75 @@ export default function BidonesPage() {
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                 )}
                 Guardar Cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {detalleTipo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  detalleTipo === 'entrega' ? 'bg-green-50' : detalleTipo === 'retorno' ? 'bg-blue-50' : 'bg-red-50'
+                }`}>
+                  {detalleTipo === 'entrega' ? <Plus className={`w-5 h-5 ${detalleTipo === 'entrega' ? 'text-green-600' : detalleTipo === 'retorno' ? 'text-blue-600' : 'text-red-600'}`} /> :
+                   detalleTipo === 'retorno' ? <RotateCcw className="w-5 h-5 text-blue-600" /> :
+                   <AlertTriangle className="w-5 h-5 text-red-600" />}
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Historial de {detalleTipo === 'entrega' ? 'Entregas' : detalleTipo === 'retorno' ? 'Retornos' : 'Pérdidas'}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {detalleMovimientos.length} registro{detalleMovimientos.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+              <button onClick={closeDetalle} className="p-1 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-6">
+              {detalleLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : detalleMovimientos.length === 0 ? (
+                <p className="text-center text-gray-500 py-12">No hay registros de {detalleTipo === 'entrega' ? 'entregas' : detalleTipo === 'retorno' ? 'retornos' : 'pérdidas'}.</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-gray-600 uppercase text-xs">
+                      <th className="text-left px-3 py-2 font-semibold">Cliente</th>
+                      <th className="text-left px-3 py-2 font-semibold">Teléfono</th>
+                      <th className="text-center px-3 py-2 font-semibold">Cantidad</th>
+                      <th className="text-right px-3 py-2 font-semibold">Fecha</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {detalleMovimientos.map((mov: any) => (
+                      <tr key={mov.id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-gray-900 font-medium">{mov.cliente_nombre}</td>
+                        <td className="px-3 py-2 text-gray-600">{mov.cliente_telefono}</td>
+                        <td className="px-3 py-2 text-center font-semibold">{mov.cantidad}</td>
+                        <td className="px-3 py-2 text-right text-gray-500">{new Date(mov.fecha).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex justify-end">
+              <button
+                onClick={closeDetalle}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cerrar
               </button>
             </div>
           </div>
