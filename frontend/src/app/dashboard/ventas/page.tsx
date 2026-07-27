@@ -29,6 +29,7 @@ interface DetalleRow {
   cantidad: number;
   precio_unitario: number;
   producto_nombre?: string;
+  es_prestado?: boolean;
 }
 
 interface Estadisticas {
@@ -215,7 +216,7 @@ export default function VentasPage() {
       dias_plazo: 30,
       observaciones: '',
     });
-    setDetalleRows([{ producto_id: 0, cantidad: 1, precio_unitario: 0 }]);
+    setDetalleRows([{ producto_id: 0, cantidad: 1, precio_unitario: 0, es_prestado: false }]);
   };
 
   const handleProductChange = (index: number, productoId: number) => {
@@ -226,6 +227,7 @@ export default function VentasPage() {
       cantidad: 1,
       precio_unitario: producto?.precio_venta || 0,
       producto_nombre: producto?.nombre,
+      es_prestado: false,
     };
     setDetalleRows(newRows);
   };
@@ -242,8 +244,14 @@ export default function VentasPage() {
     setDetalleRows(newRows);
   };
 
+  const handlePrestadoChange = (index: number, es_prestado: boolean) => {
+    const newRows = [...detalleRows];
+    newRows[index] = { ...newRows[index], es_prestado };
+    setDetalleRows(newRows);
+  };
+
   const addProductRow = () => {
-    setDetalleRows([...detalleRows, { producto_id: 0, cantidad: 1, precio_unitario: 0 }]);
+    setDetalleRows([...detalleRows, { producto_id: 0, cantidad: 1, precio_unitario: 0, es_prestado: false }]);
   };
 
   const removeProductRow = (index: number) => {
@@ -281,6 +289,7 @@ export default function VentasPage() {
           producto_id: r.producto_id,
           cantidad: r.cantidad,
           precio_unitario: r.precio_unitario,
+          es_prestado: r.es_prestado || false,
         })),
         observaciones: formData.observaciones || undefined,
       });
@@ -480,6 +489,24 @@ export default function VentasPage() {
                       {formatCurrency(row.cantidad * row.precio_unitario)}
                     </div>
                   </div>
+
+                  {(() => {
+                    const prod = productos.find(p => p.id === row.producto_id);
+                    return prod?.categoria === 'bidon_lleno' ? (
+                      <div className="flex items-center gap-2 py-2">
+                        <input
+                          type="checkbox"
+                          id={`prestado-${index}`}
+                          checked={row.es_prestado || false}
+                          onChange={(e) => handlePrestadoChange(index, e.target.checked)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor={`prestado-${index}`} className="text-xs text-gray-600 cursor-pointer select-none">
+                          Bidón prestado
+                        </label>
+                      </div>
+                    ) : null;
+                  })()}
 
                   {detalleRows.length > 1 && (
                     <button

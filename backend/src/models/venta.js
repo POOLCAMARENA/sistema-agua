@@ -1,5 +1,6 @@
 const pool = require('../config/database');
 const Kardex = require('./kardex');
+const BidonCliente = require('./bidonCliente');
 
 class Venta {
   static async crear(datos) {
@@ -43,6 +44,25 @@ class Venta {
           documento_tipo: 'venta',
           observaciones: `Venta a cliente ${cliente_id}`
         });
+
+        // Si es bidón prestado, registrar en bidones_cliente
+        if (item.es_prestado) {
+          const bidonExistente = await client.query(
+            'SELECT * FROM bidones_cliente WHERE cliente_id = $1',
+            [cliente_id]
+          );
+          if (!bidonExistente.rows[0]) {
+            await client.query(
+              'INSERT INTO bidones_cliente (cliente_id, bidones_entregados, saldo_bidones) VALUES ($1, $2, $2)',
+              [cliente_id, item.cantidad]
+            );
+          } else {
+            await client.query(
+              'UPDATE bidones_cliente SET bidones_entregados = bidones_entregados + $1, saldo_bidones = saldo_bidones + $1, fecha_actualizacion = CURRENT_TIMESTAMP WHERE cliente_id = $2',
+              [item.cantidad, cliente_id]
+            );
+          }
+        }
       }
 
       // Si es crédito, crear registro de crédito
