@@ -178,11 +178,11 @@ class BidonCliente {
     const result = await pool.query(`
       SELECT 
         COUNT(*) as total_clientes,
-        SUM(bidones_entregados) as total_entregados,
-        SUM(bidones_retornados) as total_retornados,
-        SUM(bidones_perdidos) as total_perdidos,
-        SUM(saldo_bidones) as saldo_actual,
-        COUNT(*) FILTER (WHERE saldo_bidones > 0) as clientes_con_prestamo
+        SUM(bidones_entregados) as total_bidones_entregados,
+        SUM(bidones_retornados) as total_bidones_retornados,
+        SUM(bidones_perdidos) as total_bidones_perdidos,
+        SUM(saldo_bidones) as saldo_actual_total,
+        COUNT(*) FILTER (WHERE saldo_bidones > 0) as total_clientes_con_prestamo
       FROM bidones_cliente
     `);
     return result.rows[0];

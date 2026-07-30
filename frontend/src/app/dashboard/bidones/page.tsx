@@ -22,6 +22,7 @@ import { useAuthStore } from '@/lib/store';
 interface EstadisticasBidones {
   total_clientes_con_prestamo: number;
   total_bidones_entregados: number;
+  total_bidones_retornados: number;
   saldo_actual_total: number;
 }
 
