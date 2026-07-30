@@ -200,7 +200,7 @@ export default function BidonesPage() {
       value: estadisticas?.total_clientes_con_prestamo ?? bidones.filter(b => b.saldo_bidones > 0).length,
       icon: Droplets,
       color: 'bg-blue-500',
-      tipo: null as const,
+      tipo: null,
     },
     {
       label: 'Total Bidones Entregados',
@@ -221,7 +221,7 @@ export default function BidonesPage() {
       value: estadisticas?.saldo_actual_total ?? bidones.reduce((s, b) => s + b.saldo_bidones, 0),
       icon: Droplets,
       color: 'bg-cyan-500',
-      tipo: null as const,
+      tipo: null,
     },
   ];
 
