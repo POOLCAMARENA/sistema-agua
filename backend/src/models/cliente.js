@@ -2,18 +2,31 @@ const pool = require('../config/database');
 
 class Cliente {
   static async crear(datos) {
-    const { nombre, dni_ruc, telefono, direccion, referencia, ubicacion, foto, latitud, longitud, tipo_cliente } = datos;
+    const { nombre, dni_ruc, telefono, direccion, referencia, ubicacion, foto, latitud, longitud, tipo_cliente, ruta_id } = datos;
     const dni = dni_ruc || null;
     const tipo = tipo_cliente || 'regular';
     const result = await pool.query(
       'INSERT INTO clientes (nombre, dni_ruc, telefono, direccion, referencia, ubicacion, foto, latitud, longitud, tipo_cliente) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *',
       [nombre, dni, telefono, direccion, referencia, ubicacion, foto, latitud, longitud, tipo]
     );
-    return result.rows[0];
+    const cliente = result.rows[0];
+
+    const rid = parseInt(ruta_id);
+    if (rid > 0) {
+      await pool.query(
+        'INSERT INTO clientes_ruta (ruta_id, cliente_id, orden_visita) VALUES ($1, $2, 0) ON CONFLICT (ruta_id, cliente_id) DO NOTHING',
+        [rid, cliente.id]
+      );
+    }
+
+    return cliente;
   }
 
-  static async listar({ estado, tipo_cliente, buscar } = {}) {
-    let query = 'SELECT * FROM clientes WHERE 1=1';
+  static async listar({ estado, tipo_cliente, buscar, ruta_id } = {}) {
+    let query = `SELECT clientes.*,
+        (SELECT cr.ruta_id FROM clientes_ruta cr WHERE cr.cliente_id = clientes.id LIMIT 1) as ruta_id,
+        (SELECT r.nombre FROM clientes_ruta cr JOIN rutas r ON r.id = cr.ruta_id WHERE cr.cliente_id = clientes.id LIMIT 1) as ruta_nombre
+      FROM clientes WHERE 1=1`;
     const params = [];
     let paramIndex = 1;
 
@@ -37,6 +50,12 @@ class Cliente {
       paramIndex++;
     }
 
+    if (ruta_id) {
+      query += ` AND EXISTS (SELECT 1 FROM clientes_ruta cr WHERE cr.cliente_id = clientes.id AND cr.ruta_id = $${paramIndex})`;
+      params.push(parseInt(ruta_id));
+      paramIndex++;
+    }
+
     if (buscar) {
       query += ` AND (nombre ILIKE $${paramIndex} OR telefono ILIKE $${paramIndex} OR dni_ruc ILIKE $${paramIndex})`;
       params.push(`%${buscar}%`);
@@ -51,7 +70,10 @@ class Cliente {
 
   static async buscarPorId(id) {
     const result = await pool.query(
-      'SELECT * FROM clientes WHERE id = $1',
+      `SELECT clientes.*,
+        (SELECT cr.ruta_id FROM clientes_ruta cr WHERE cr.cliente_id = clientes.id LIMIT 1) as ruta_id,
+        (SELECT r.nombre FROM clientes_ruta cr JOIN rutas r ON r.id = cr.ruta_id WHERE cr.cliente_id = clientes.id LIMIT 1) as ruta_nombre
+      FROM clientes WHERE id = $1`,
       [id]
     );
     return result.rows[0];
@@ -66,7 +88,7 @@ class Cliente {
   }
 
   static async actualizar(id, datos) {
-    const { nombre, dni_ruc, telefono, direccion, referencia, ubicacion, foto, latitud, longitud, tipo_cliente, estado } = datos;
+    const { nombre, dni_ruc, telefono, direccion, referencia, ubicacion, foto, latitud, longitud, tipo_cliente, estado, ruta_id } = datos;
     const dni = dni_ruc || null;
     const tipo = tipo_cliente || 'regular';
     const est = estado || 'activo';
@@ -74,7 +96,20 @@ class Cliente {
       'UPDATE clientes SET nombre = $1, dni_ruc = $2, telefono = $3, direccion = $4, referencia = $5, ubicacion = $6, foto = $7, latitud = $8, longitud = $9, tipo_cliente = $10, estado = $11, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id = $12 RETURNING *',
       [nombre, dni, telefono, direccion, referencia, ubicacion, foto, latitud, longitud, tipo, est, id]
     );
-    return result.rows[0];
+    const cliente = result.rows[0];
+
+    if (ruta_id !== undefined && ruta_id !== null && ruta_id !== '') {
+      await pool.query('DELETE FROM clientes_ruta WHERE cliente_id = $1', [id]);
+      const rid = parseInt(ruta_id);
+      if (rid > 0) {
+        await pool.query(
+          'INSERT INTO clientes_ruta (ruta_id, cliente_id, orden_visita) VALUES ($1, $2, 0) ON CONFLICT (ruta_id, cliente_id) DO NOTHING',
+          [rid, id]
+        );
+      }
+    }
+
+    return cliente;
   }
 
   static async eliminar(id) {

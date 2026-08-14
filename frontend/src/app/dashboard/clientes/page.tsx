@@ -18,13 +18,21 @@ type ClienteFormData = {
   latitud: number;
   longitud: number;
   tipo_cliente: 'regular' | 'vip' | 'empresarial';
+  ruta_id: number;
 };
+
+interface Ruta {
+  id: number;
+  nombre: string;
+}
 
 export default function ClientesPage() {
   const esAdmin = useAuthStore((s) => s.usuario)?.rol === 'admin';
   const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [rutas, setRutas] = useState<Ruta[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filtroRuta, setFiltroRuta] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -46,13 +54,23 @@ export default function ClientesPage() {
     }
   }, []);
 
+  const fetchRutas = useCallback(async () => {
+    try {
+      const res = await api.get('/rutas');
+      setRutas(res.data);
+    } catch {
+      console.error('Error al cargar rutas');
+    }
+  }, []);
+
   useEffect(() => {
     fetchClientes();
-  }, [fetchClientes]);
+    fetchRutas();
+  }, [fetchClientes, fetchRutas]);
 
   const openCreate = () => {
     setEditingId(null);
-    reset({ nombre: '', dni_ruc: '', telefono: '', direccion: '', referencia: '', ubicacion: '', foto: '', latitud: 0, longitud: 0, tipo_cliente: 'regular' });
+    reset({ nombre: '', dni_ruc: '', telefono: '', direccion: '', referencia: '', ubicacion: '', foto: '', latitud: 0, longitud: 0, tipo_cliente: 'regular', ruta_id: 0 });
     setFotoPreview('');
     setModalOpen(true);
   };
@@ -70,6 +88,7 @@ export default function ClientesPage() {
     setValue('longitud', c.longitud || 0);
     setFotoPreview(c.foto || '');
     setValue('tipo_cliente', c.tipo_cliente);
+    setValue('ruta_id', c.ruta_id || 0);
     setModalOpen(true);
   };
 
@@ -158,13 +177,13 @@ export default function ClientesPage() {
   };
 
   const filtered = clientes.filter((c) => {
-    if (!search) return true;
     const q = search.toLowerCase();
-    return (
+    const matchSearch = !search ||
       c.nombre.toLowerCase().includes(q) ||
       c.telefono.toLowerCase().includes(q) ||
-      (c.dni_ruc || '').toLowerCase().includes(q)
-    );
+      (c.dni_ruc || '').toLowerCase().includes(q);
+    const matchRuta = !filtroRuta || c.ruta_id === filtroRuta;
+    return matchSearch && matchRuta;
   });
 
   const estadoBadge = (estado: string | null | undefined) => {
@@ -213,15 +232,29 @@ export default function ClientesPage() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200">
         <div className="p-4 border-b border-gray-200">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por nombre, teléfono o DNI..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-            />
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por nombre, teléfono o DNI..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              />
+            </div>
+            <div className="relative sm:max-w-xs w-full">
+              <select
+                value={filtroRuta}
+                onChange={(e) => setFiltroRuta(Number(e.target.value))}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+              >
+                <option value={0}>Todas las rutas</option>
+                {rutas.map((r) => (
+                  <option key={r.id} value={r.id}>{r.nombre}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -245,6 +278,7 @@ export default function ClientesPage() {
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">DNI/RUC</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Teléfono</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Dirección</th>
+                    <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ruta</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Ubicación</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Foto</th>
                     <th className="text-left px-6 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipo</th>
@@ -259,6 +293,13 @@ export default function ClientesPage() {
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{c.dni_ruc || '-'}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">{c.telefono}</td>
                       <td className="px-6 py-4 text-sm text-gray-600 max-w-[200px] truncate">{c.direccion}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600 whitespace-nowrap">
+                        {c.ruta_nombre ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                            {c.ruta_nombre}
+                          </span>
+                        ) : <span className="text-gray-300">-</span>}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           {c.ubicacion ? (
@@ -329,6 +370,11 @@ export default function ClientesPage() {
                   <div className="flex flex-wrap gap-2 text-sm text-gray-600">
                     {c.dni_ruc && <span>DNI: {c.dni_ruc}</span>}
                     <span>{c.direccion}</span>
+                    {c.ruta_nombre && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">
+                        {c.ruta_nombre}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {c.ubicacion ? (
@@ -475,6 +521,20 @@ export default function ClientesPage() {
                   <option value="vip">VIP</option>
                   <option value="empresarial">Empresarial</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ruta / Distrito</label>
+                <select
+                  {...register('ruta_id', { valueAsNumber: true })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+                >
+                  <option value={0}>Seleccionar ruta</option>
+                  {rutas.map((r) => (
+                    <option key={r.id} value={r.id}>{r.nombre}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-400">Asigna el distrito o ruta de reparto del cliente</p>
               </div>
 
               {submitError && (

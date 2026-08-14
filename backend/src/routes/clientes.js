@@ -14,8 +14,8 @@ const clienteValidaciones = [
 // Listar clientes
 router.get('/', auth, async (req, res) => {
   try {
-    const { estado, tipo_cliente, buscar } = req.query;
-    const clientes = await Cliente.listar({ estado, tipo_cliente, buscar });
+    const { estado, tipo_cliente, buscar, ruta_id } = req.query;
+    const clientes = await Cliente.listar({ estado, tipo_cliente, buscar, ruta_id });
     res.json(clientes);
   } catch (error) {
     console.error('Error al listar clientes:', error);

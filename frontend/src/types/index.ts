@@ -21,6 +21,8 @@ export interface Cliente {
   longitud?: number;
   tipo_cliente: 'regular' | 'vip' | 'empresarial';
   estado: 'activo' | 'inactivo' | 'suspendido';
+  ruta_id?: number;
+  ruta_nombre?: string;
   fecha_creacion: string;
   fecha_actualizacion: string;
 }
