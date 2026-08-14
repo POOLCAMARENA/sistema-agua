@@ -56,6 +56,10 @@ router.post('/', cajeroAuth, clienteValidaciones, async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
+    if (!req.body.ruta_id) {
+      return res.status(400).json({ error: 'Debe seleccionar una ruta' });
+    }
+
     if (req.body.dni_ruc) {
       const existente = await Cliente.buscarPorDniRuc(req.body.dni_ruc);
       if (existente) return res.status(400).json({ error: 'El DNI/RUC ya está registrado' });

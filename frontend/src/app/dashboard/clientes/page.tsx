@@ -524,9 +524,9 @@ export default function ClientesPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ruta / Distrito</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ruta / Distrito *</label>
                 <select
-                  {...register('ruta_id', { valueAsNumber: true })}
+                  {...register('ruta_id', { valueAsNumber: true, required: 'Debe seleccionar una ruta' })}
                   className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
                 >
                   <option value={0}>Seleccionar ruta</option>
@@ -534,6 +534,7 @@ export default function ClientesPage() {
                     <option key={r.id} value={r.id}>{r.nombre}</option>
                   ))}
                 </select>
+                {errors.ruta_id && <p className="mt-1 text-xs text-red-600">{errors.ruta_id.message}</p>}
                 <p className="mt-1 text-xs text-gray-400">Asigna el distrito o ruta de reparto del cliente</p>
               </div>
 
