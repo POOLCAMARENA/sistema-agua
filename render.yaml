@@ -11,7 +11,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: JWT_SECRET
-        generateValue: true
+        value: agua-s3cret-k3y-2026-pr0d-x7m9
       - key: CORS_ORIGIN
         sync: false
       - key: PORT
