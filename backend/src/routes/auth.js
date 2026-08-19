@@ -49,6 +49,9 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error('Error en login:', error);
+    if (error.code === 'ECONNREFUSED' || error.code === '57P01' || error.code === '57P02' || error.message?.includes('Connection terminated') || error.message?.includes('timeout')) {
+      return res.status(503).json({ error: 'Base de datos no disponible, intente de nuevo en unos segundos' });
+    }
     res.status(500).json({ error: 'Error al iniciar sesión' });
   }
 });

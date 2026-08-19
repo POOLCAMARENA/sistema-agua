@@ -67,8 +67,13 @@ app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/backup', require('./routes/backup'));
 
 // Ruta de salud
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'OK', message: 'Sistema de Agua API funcionando' });
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'OK', message: 'Sistema de Agua API funcionando', db: 'conectada' });
+  } catch (error) {
+    res.status(503).json({ status: 'WARN', message: 'API funcionando pero base de datos no disponible', db: 'desconectada' });
+  }
 });
 
 // Manejo de errores
@@ -93,6 +98,11 @@ runMigrations().then(() => {
   app.listen(PORT, () => {
     console.log(`Servidor corriendo en puerto ${PORT}`);
     console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+  });
+}).catch((err) => {
+  console.error('Error en migraciones, intentando iniciar de todas formas:', err.message);
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT} (sin migraciones)`);
   });
 });
 
