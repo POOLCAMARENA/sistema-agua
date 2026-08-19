@@ -29,7 +29,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Actualizar última sesión
-    await pool.query('UPDATE usuarios SET ultima_sesion = CURRENT_TIMESTAMP WHERE id = $1', [usuario.id]);
+    await pool.queryWithRetry('UPDATE usuarios SET ultima_sesion = CURRENT_TIMESTAMP WHERE id = $1', [usuario.id]);
 
     const token = jwt.sign(
       { id: usuario.id, email: usuario.email, rol: usuario.rol },

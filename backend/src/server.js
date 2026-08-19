@@ -4,6 +4,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const fs = require('fs');
 const path = require('path');
+const cron = require('node-cron');
 require('dotenv').config();
 
 const pool = require('./config/database');
@@ -11,7 +12,7 @@ const pool = require('./config/database');
 // Migraciones automáticas al iniciar
 async function runMigrations() {
   try {
-    await pool.query(`
+    await pool.queryWithRetry(`
       CREATE TABLE IF NOT EXISTS movimientos_bidones (
         id SERIAL PRIMARY KEY,
         cliente_id INTEGER REFERENCES clientes(id),
@@ -22,8 +23,8 @@ async function runMigrations() {
         usuario_id INTEGER REFERENCES usuarios(id)
       )
     `);
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_cliente ON movimientos_bidones(cliente_id)');
-    await pool.query('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_tipo ON movimientos_bidones(tipo)');
+    await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_cliente ON movimientos_bidones(cliente_id)');
+    await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_tipo ON movimientos_bidones(tipo)');
     console.log('Migraciones ejecutadas correctamente');
   } catch (error) {
     console.error('Error ejecutando migraciones:', error);
@@ -69,7 +70,7 @@ app.use('/api/backup', require('./routes/backup'));
 // Ruta de salud
 app.get('/api/health', async (req, res) => {
   try {
-    await pool.query('SELECT 1');
+    await pool.queryWithRetry('SELECT 1');
     res.json({ status: 'OK', message: 'Sistema de Agua API funcionando', db: 'conectada' });
   } catch (error) {
     res.status(503).json({ status: 'WARN', message: 'API funcionando pero base de datos no disponible', db: 'desconectada' });
@@ -90,6 +91,16 @@ app.use((err, req, res, next) => {
 // Ruta no encontrada
 app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+// Keep-alive: evitar que Neon PostgreSQL se duerma
+cron.schedule('*/4 * * * *', async () => {
+  try {
+    await pool.queryWithRetry('SELECT 1');
+    console.log('[Keep-alive] Neon DB despierta');
+  } catch (error) {
+    console.error('[Keep-alive] Error manteniendo DB despierta:', error.message);
+  }
 });
 
 const PORT = process.env.PORT || 3001;
