@@ -91,7 +91,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-gray-500">
             <p>Credenciales de prueba:</p>
-            <p className="font-mono text-xs mt-1">admin@sistemaagua.com / password</p>
+            <p className="font-mono text-xs mt-1">admin@sistemaagua.com / admin123</p>
           </div>
         </div>
       </div>
