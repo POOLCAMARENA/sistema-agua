@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import api from '@/lib/axios';
 import { Cliente } from '@/types';
 import { useAuthStore } from '@/lib/store';
-import { Plus, Edit, Trash2, Search, Users, X, MapPin, ExternalLink, Camera, Navigation } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Users, X, MapPin, ExternalLink, Camera, Navigation, ImagePlus } from 'lucide-react';
 
 type ClienteFormData = {
   nombre: string;
@@ -97,6 +97,27 @@ export default function ClientesPage() {
     input.type = 'file';
     input.accept = 'image/*';
     input.capture = 'environment';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('foto', file);
+      try {
+        const res = await api.post('/upload/foto', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+        const url = res.data.url;
+        setValue('foto', url);
+        setFotoPreview(url);
+      } catch (err: any) {
+        alert(err?.response?.data?.error || 'Error al subir foto');
+      }
+    };
+    input.click();
+  };
+
+  const subirFoto = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
     input.onchange = async (e: any) => {
       const file = e.target.files?.[0];
       if (!file) return;
@@ -501,6 +522,10 @@ export default function ClientesPage() {
                     <Camera className="w-4 h-4" />
                     Tomar Foto
                   </button>
+                  <button type="button" onClick={subirFoto} className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 text-sm font-medium">
+                    <ImagePlus className="w-4 h-4" />
+                    Subir Foto
+                  </button>
                   {fotoPreview && (
                     <div className="relative">
                       <img src={fotoPreview} alt="Preview" className="w-16 h-16 object-cover rounded-lg border" />
@@ -508,7 +533,7 @@ export default function ClientesPage() {
                     </div>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-gray-400">Toma una foto de la vivienda para identificar al cliente</p>
+                <p className="mt-1 text-xs text-gray-400">Toma una foto o sube una imagen de la galería</p>
               </div>
 
               <div>
