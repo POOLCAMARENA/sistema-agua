@@ -29,9 +29,9 @@ export default function ProveedoresPage() {
   const fetchProveedores = useCallback(async () => {
     try {
       const res = await api.get('/proveedores');
-      setProveedores(res.data);
-    } catch {
-      console.error('Error al cargar proveedores');
+      setProveedores(Array.isArray(res.data) ? res.data : []);
+    } catch (err: any) {
+      console.error('Error al cargar proveedores:', err?.response?.data || err.message);
     } finally {
       setLoading(false);
     }
@@ -67,8 +67,8 @@ export default function ProveedoresPage() {
       }
       setModalOpen(false);
       fetchProveedores();
-    } catch {
-      console.error('Error al guardar proveedor');
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Error al guardar proveedor');
     } finally {
       setSubmitting(false);
     }
@@ -79,8 +79,8 @@ export default function ProveedoresPage() {
     try {
       await api.delete(`/proveedores/${id}`);
       fetchProveedores();
-    } catch {
-      console.error('Error al eliminar proveedor');
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Error al eliminar proveedor');
     }
   };
 
@@ -94,14 +94,15 @@ export default function ProveedoresPage() {
     );
   });
 
-  const estadoBadge = (estado: string) => {
+  const estadoBadge = (estado: string | null | undefined) => {
+    const safeEstado = estado || 'activo';
     const styles: Record<string, string> = {
       activo: 'bg-green-100 text-green-800',
       inactivo: 'bg-gray-100 text-gray-800',
     };
     return (
-      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[estado] || ''}`}>
-        {estado.charAt(0).toUpperCase() + estado.slice(1)}
+      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${styles[safeEstado] || ''}`}>
+        {safeEstado.charAt(0).toUpperCase() + safeEstado.slice(1)}
       </span>
     );
   };

@@ -56,6 +56,11 @@ async function runMigrations() {
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_estado ON programaciones(estado)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_ruta ON programaciones(ruta_id)');
 
+    // Corregir estados null en proveedores
+    await pool.queryWithRetry("UPDATE proveedores SET estado = 'activo' WHERE estado IS NULL");
+    await pool.queryWithRetry("UPDATE clientes SET estado = 'activo' WHERE estado IS NULL");
+    await pool.queryWithRetry("UPDATE productos SET estado = 'activo' WHERE estado IS NULL");
+
     console.log('Migraciones ejecutadas correctamente');
   } catch (error) {
     console.error('Error ejecutando migraciones:', error);
