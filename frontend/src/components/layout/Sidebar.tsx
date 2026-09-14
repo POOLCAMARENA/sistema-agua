@@ -20,13 +20,15 @@ import {
   Menu,
   ClipboardList,
   Shield,
-  Database
+  Database,
+  CalendarClock
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 
 const menuItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Pedidos', href: '/dashboard/pedidos', icon: ClipboardList },
+  { name: 'Programaciones', href: '/dashboard/programaciones', icon: CalendarClock },
   { name: 'Clientes', href: '/dashboard/clientes', icon: Users },
   { name: 'Ventas', href: '/dashboard/ventas', icon: ShoppingCart },
   { name: 'Compras', href: '/dashboard/compras', icon: Package },

@@ -167,6 +167,36 @@ export interface DetallePedido {
   producto_nombre?: string;
 }
 
+export interface Programacion {
+  id: number;
+  cliente_id: number;
+  ruta_id?: number;
+  fecha_programada: string;
+  hora_programada: string;
+  estado: 'pendiente' | 'completada' | 'cancelada';
+  observaciones?: string;
+  usuario_id: number;
+  fecha_creacion: string;
+  fecha_completada?: string;
+  cliente_nombre?: string;
+  cliente_telefono?: string;
+  cliente_direccion?: string;
+  cliente_ubicacion?: string;
+  cliente_referencia?: string;
+  ruta_nombre?: string;
+  total?: number;
+}
+
+export interface DetalleProgramacion {
+  id: number;
+  programacion_id: number;
+  producto_id: number;
+  cantidad: number;
+  precio_unitario: number;
+  subtotal: number;
+  producto_nombre?: string;
+}
+
 export interface Dashboard {
   ventas: {
     total_ventas: number;

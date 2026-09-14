@@ -25,6 +25,37 @@ async function runMigrations() {
     `);
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_cliente ON movimientos_bidones(cliente_id)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_tipo ON movimientos_bidones(tipo)');
+
+    // Tabla de programaciones de ventas
+    await pool.queryWithRetry(`
+      CREATE TABLE IF NOT EXISTS programaciones (
+        id SERIAL PRIMARY KEY,
+        cliente_id INTEGER REFERENCES clientes(id),
+        ruta_id INTEGER REFERENCES rutas(id),
+        fecha_programada DATE NOT NULL,
+        hora_programada TIME NOT NULL,
+        estado VARCHAR(20) DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'completada', 'cancelada')),
+        observaciones TEXT,
+        usuario_id INTEGER REFERENCES usuarios(id),
+        fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        fecha_completada TIMESTAMP
+      )
+    `);
+    await pool.queryWithRetry(`
+      CREATE TABLE IF NOT EXISTS detalle_programaciones (
+        id SERIAL PRIMARY KEY,
+        programacion_id INTEGER REFERENCES programaciones(id) ON DELETE CASCADE,
+        producto_id INTEGER REFERENCES productos(id),
+        cantidad INTEGER NOT NULL,
+        precio_unitario DECIMAL(10, 2) NOT NULL,
+        subtotal DECIMAL(10, 2) NOT NULL
+      )
+    `);
+    await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_cliente ON programaciones(cliente_id)');
+    await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_fecha ON programaciones(fecha_programada)');
+    await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_estado ON programaciones(estado)');
+    await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_ruta ON programaciones(ruta_id)');
+
     console.log('Migraciones ejecutadas correctamente');
   } catch (error) {
     console.error('Error ejecutando migraciones:', error);
@@ -66,6 +97,7 @@ app.use('/api/consumo', require('./routes/consumo'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/backup', require('./routes/backup'));
+app.use('/api/programaciones', require('./routes/programaciones'));
 
 // Ruta de salud
 app.get('/api/health', async (req, res) => {
