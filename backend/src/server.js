@@ -9,10 +9,10 @@ require('dotenv').config();
 
 const pool = require('./config/database');
 
-// Migraciones automáticas al iniciar
+// Migraciones automaticas al iniciar
 async function runMigrations() {
   try {
-    await pool.queryWithRetry(`
+    await pool.queryWithRetry(\`
       CREATE TABLE IF NOT EXISTS movimientos_bidones (
         id SERIAL PRIMARY KEY,
         cliente_id INTEGER REFERENCES clientes(id),
@@ -22,12 +22,11 @@ async function runMigrations() {
         observaciones TEXT,
         usuario_id INTEGER REFERENCES usuarios(id)
       )
-    `);
+    \`);
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_cliente ON movimientos_bidones(cliente_id)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_tipo ON movimientos_bidones(tipo)');
 
-    // Tabla de programaciones de ventas
-    await pool.queryWithRetry(`
+    await pool.queryWithRetry(\`
       CREATE TABLE IF NOT EXISTS programaciones (
         id SERIAL PRIMARY KEY,
         cliente_id INTEGER REFERENCES clientes(id),
@@ -40,8 +39,8 @@ async function runMigrations() {
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         fecha_completada TIMESTAMP
       )
-    `);
-    await pool.queryWithRetry(`
+    \`);
+    await pool.queryWithRetry(\`
       CREATE TABLE IF NOT EXISTS detalle_programaciones (
         id SERIAL PRIMARY KEY,
         programacion_id INTEGER REFERENCES programaciones(id) ON DELETE CASCADE,
@@ -50,13 +49,12 @@ async function runMigrations() {
         precio_unitario DECIMAL(10, 2) NOT NULL,
         subtotal DECIMAL(10, 2) NOT NULL
       )
-    `);
+    \`);
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_cliente ON programaciones(cliente_id)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_fecha ON programaciones(fecha_programada)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_estado ON programaciones(estado)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_ruta ON programaciones(ruta_id)');
 
-    // Corregir estados null en proveedores
     await pool.queryWithRetry("UPDATE proveedores SET estado = 'activo' WHERE estado IS NULL");
     await pool.queryWithRetry("UPDATE clientes SET estado = 'activo' WHERE estado IS NULL");
     await pool.queryWithRetry("UPDATE productos SET estado = 'activo' WHERE estado IS NULL");
@@ -67,13 +65,11 @@ async function runMigrations() {
   }
 }
 
-// Crear directorio de uploads si no existe
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 const app = express();
 
-// Middleware
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN === '*' ? true : (process.env.CORS_ORIGIN || 'http://localhost:3000'),
@@ -83,7 +79,7 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
-// Rutas
+// Rutas API
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/clientes', require('./routes/clientes'));
 app.use('/api/productos', require('./routes/productos'));
@@ -104,7 +100,7 @@ app.use('/api/usuarios', require('./routes/usuarios'));
 app.use('/api/backup', require('./routes/backup'));
 app.use('/api/programaciones', require('./routes/programaciones'));
 
-// Ruta de salud
+// Health check
 app.get('/api/health', async (req, res) => {
   try {
     await pool.queryWithRetry('SELECT 1');
@@ -114,60 +110,66 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Manejo de errores
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(err.status || 500).json({
-    error: {
-      message: err.message || 'Error interno del servidor',
-      status: err.status || 500
-    }
+    error: { message: err.message || 'Error interno del servidor', status: err.status || 500 }
   });
 });
 
 // ============================================
-// Servir Frontend Estático
+// Servir Frontend Estatico
+// Buscar en multiples ubicaciones posibles
 // ============================================
-const frontendPublicPath = path.join(__dirname, '..', 'public');
+const possiblePaths = [
+  path.join(__dirname, '..', 'public'),        // Docker: /app/public
+  path.join(__dirname, '..', '..', 'public'),  // Railpack: /app/public (alt)
+  path.join(__dirname, 'public'),              // Misma carpeta src
+];
 
-// Servir archivos estáticos del frontend
-if (fs.existsSync(frontendPublicPath)) {
-  app.use(express.static(frontendPublicPath));
-  console.log('[Frontend] Archivos estáticos del frontend configurados');
+let frontendPublicPath = null;
+for (const p of possiblePaths) {
+  const indexPath = path.join(p, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    frontendPublicPath = p;
+    console.log('[Frontend] Encontrado en:', p);
+    break;
+  }
 }
 
-// Ruta catch-all para el frontend (después de todas las rutas API)
-app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
-    return next();
-  }
-  
-  const requestedPath = req.path === '/' ? '/index.html' : req.path;
-  const htmlPath = path.join(frontendPublicPath, requestedPath);
-  
-  if (fs.existsSync(htmlPath) && htmlPath.endsWith('.html')) {
-    return res.sendFile(htmlPath);
-  }
-  
-  const indexPath = path.join(htmlPath, 'index.html');
-  if (fs.existsSync(indexPath)) {
-    return res.sendFile(indexPath);
-  }
-  
-  const mainIndex = path.join(frontendPublicPath, 'index.html');
-  if (fs.existsSync(mainIndex)) {
-    return res.sendFile(mainIndex);
-  }
-  
-  res.status(404).json({ error: 'Ruta no encontrada' });
-});
+if (frontendPublicPath) {
+  app.use(express.static(frontendPublicPath));
+  console.log('[Frontend] Archivos estaticos configurados');
 
-// Ruta no encontrada para API
-app.use((req, res) => {
-  res.status(404).json({ error: 'Ruta no encontrada' });
-});
+  // SPA catch-all
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+      return next();
+    }
+    const requestedPath = req.path === '/' ? '/index.html' : req.path;
+    const htmlPath = path.join(frontendPublicPath, requestedPath);
+    if (fs.existsSync(htmlPath) && htmlPath.endsWith('.html')) {
+      return res.sendFile(htmlPath);
+    }
+    const indexPath = path.join(htmlPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+      return res.sendFile(indexPath);
+    }
+    const mainIndex = path.join(frontendPublicPath, 'index.html');
+    if (fs.existsSync(mainIndex)) {
+      return res.sendFile(mainIndex);
+    }
+    res.status(404).json({ error: 'Ruta no encontrada' });
+  });
+} else {
+  console.log('[Frontend] No se encontraron archivos estaticos del frontend');
+  app.use((req, res) => {
+    res.status(404).json({ error: 'Ruta no encontrada' });
+  });
+}
 
-// Keep-alive: evitar que Neon PostgreSQL se duerma
+// Keep-alive Neon DB
 cron.schedule('*/4 * * * *', async () => {
   try {
     await pool.queryWithRetry('SELECT 1');
@@ -181,13 +183,13 @@ const PORT = process.env.PORT || 3001;
 
 runMigrations().then(() => {
   app.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-    console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
+    console.log(\`Servidor corriendo en puerto \${PORT}\`);
+    console.log(\`Ambiente: \${process.env.NODE_ENV || 'development'}\`);
   });
 }).catch((err) => {
   console.error('Error en migraciones, intentando iniciar de todas formas:', err.message);
   app.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT} (sin migraciones)`);
+    console.log(\`Servidor corriendo en puerto \${PORT} (sin migraciones)\`);
   });
 });
 
