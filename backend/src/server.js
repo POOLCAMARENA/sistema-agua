@@ -125,7 +125,51 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Ruta no encontrada
+// ============================================
+// Servir Frontend Estático (Fly.io unified)
+// ============================================
+const frontendPublicPath = path.join(__dirname, '..', 'public');
+
+// Servir archivos estáticos del frontend
+if (fs.existsSync(frontendPublicPath)) {
+  app.use(express.static(frontendPublicPath));
+  console.log('[Frontend] Archivos estáticos del frontend configurados');
+}
+
+// Ruta catch-all para el frontend (después de todas las rutas API)
+// Sirve index.html para rutas del frontend (SPA routing)
+app.get('*', (req, res, next) => {
+  // Si es una ruta de API o uploads, pasar al siguiente middleware
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+    return next();
+  }
+  
+  // Buscar index.html en la ruta solicitada
+  const requestedPath = req.path === '/' ? '/index.html' : req.path;
+  const htmlPath = path.join(frontendPublicPath, requestedPath);
+  
+  // Si existe el archivo HTML, servirlo
+  if (fs.existsSync(htmlPath) && htmlPath.endsWith('.html')) {
+    return res.sendFile(htmlPath);
+  }
+  
+  // Si existe como directorio con index.html
+  const indexPath = path.join(htmlPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return res.sendFile(indexPath);
+  }
+  
+  // Fallback: servir index.html principal (para rutas de SPA)
+  const mainIndex = path.join(frontendPublicPath, 'index.html');
+  if (fs.existsSync(mainIndex)) {
+    return res.sendFile(mainIndex);
+  }
+  
+  // Si no hay frontend, devolver error
+  res.status(404).json({ error: 'Ruta no encontrada' });
+});
+
+// Ruta no encontrada para API
 app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
 });
