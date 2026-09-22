@@ -12,7 +12,7 @@ const pool = require('./config/database');
 // Migraciones automaticas al iniciar
 async function runMigrations() {
   try {
-    await pool.queryWithRetry(\`
+    await pool.queryWithRetry(`
       CREATE TABLE IF NOT EXISTS movimientos_bidones (
         id SERIAL PRIMARY KEY,
         cliente_id INTEGER REFERENCES clientes(id),
@@ -22,11 +22,11 @@ async function runMigrations() {
         observaciones TEXT,
         usuario_id INTEGER REFERENCES usuarios(id)
       )
-    \`);
+    `);
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_cliente ON movimientos_bidones(cliente_id)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_movimientos_bidones_tipo ON movimientos_bidones(tipo)');
 
-    await pool.queryWithRetry(\`
+    await pool.queryWithRetry(`
       CREATE TABLE IF NOT EXISTS programaciones (
         id SERIAL PRIMARY KEY,
         cliente_id INTEGER REFERENCES clientes(id),
@@ -39,8 +39,8 @@ async function runMigrations() {
         fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         fecha_completada TIMESTAMP
       )
-    \`);
-    await pool.queryWithRetry(\`
+    `);
+    await pool.queryWithRetry(`
       CREATE TABLE IF NOT EXISTS detalle_programaciones (
         id SERIAL PRIMARY KEY,
         programacion_id INTEGER REFERENCES programaciones(id) ON DELETE CASCADE,
@@ -49,7 +49,7 @@ async function runMigrations() {
         precio_unitario DECIMAL(10, 2) NOT NULL,
         subtotal DECIMAL(10, 2) NOT NULL
       )
-    \`);
+    `);
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_cliente ON programaciones(cliente_id)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_fecha ON programaciones(fecha_programada)');
     await pool.queryWithRetry('CREATE INDEX IF NOT EXISTS idx_programaciones_estado ON programaciones(estado)');
@@ -120,12 +120,10 @@ app.use((err, req, res, next) => {
 
 // ============================================
 // Servir Frontend Estatico
-// Buscar en multiples ubicaciones posibles
 // ============================================
 const possiblePaths = [
-  path.join(__dirname, '..', 'public'),        // Docker: /app/public
-  path.join(__dirname, '..', '..', 'public'),  // Railpack: /app/public (alt)
-  path.join(__dirname, 'public'),              // Misma carpeta src
+  path.join(__dirname, '..', 'public'),
+  path.join(__dirname, '..', '..', 'public'),
 ];
 
 let frontendPublicPath = null;
@@ -133,7 +131,7 @@ for (const p of possiblePaths) {
   const indexPath = path.join(p, 'index.html');
   if (fs.existsSync(indexPath)) {
     frontendPublicPath = p;
-    console.log('[Frontend] Encontrado en:', p);
+    console.log('[Frontend] Encontrado en: ' + p);
     break;
   }
 }
@@ -142,7 +140,6 @@ if (frontendPublicPath) {
   app.use(express.static(frontendPublicPath));
   console.log('[Frontend] Archivos estaticos configurados');
 
-  // SPA catch-all
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
       return next();
@@ -183,13 +180,13 @@ const PORT = process.env.PORT || 3001;
 
 runMigrations().then(() => {
   app.listen(PORT, () => {
-    console.log(\`Servidor corriendo en puerto \${PORT}\`);
-    console.log(\`Ambiente: \${process.env.NODE_ENV || 'development'}\`);
+    console.log('Servidor corriendo en puerto ' + PORT);
+    console.log('Ambiente: ' + (process.env.NODE_ENV || 'development'));
   });
 }).catch((err) => {
   console.error('Error en migraciones, intentando iniciar de todas formas:', err.message);
   app.listen(PORT, () => {
-    console.log(\`Servidor corriendo en puerto \${PORT} (sin migraciones)\`);
+    console.log('Servidor corriendo en puerto ' + PORT + ' (sin migraciones)');
   });
 });
 
