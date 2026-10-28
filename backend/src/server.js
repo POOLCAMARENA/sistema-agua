@@ -4,7 +4,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const fs = require('fs');
 const path = require('path');
-const cron = require('node-cron');
 require('dotenv').config();
 
 const pool = require('./config/database');
@@ -174,15 +173,12 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Ruta no encontrada' });
 });
 
-// Keep-alive: evitar que Neon PostgreSQL se duerma
-cron.schedule('*/4 * * * *', async () => {
-  try {
-    await pool.queryWithRetry('SELECT 1');
-    console.log('[Keep-alive] Neon DB despierta');
-  } catch (error) {
-    console.error('[Keep-alive] Error manteniendo DB despierta:', error.message);
-  }
-});
+// NOTA: Keep-alive de Neon deshabilitado (opción 2).
+// El ping cada 4 min mantenía el cómputo de Neon siempre encendido
+// y agotaba las 100 horas/mes del plan Free (límite alcanzado, error 53000).
+// Con scale-to-zero, la DB se duerme tras ~5 min de inactividad y la
+// primera petición tarda ~1-2 s en despertarla, pero el uso mensual
+// queda muy por debajo del límite gratuito.
 
 const PORT = process.env.PORT || 3001;
 
