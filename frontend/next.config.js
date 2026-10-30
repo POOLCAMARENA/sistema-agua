@@ -1,18 +1,26 @@
 /** @type {import('next').NextConfig} */
-const API_URL = process.env.API_URL || '';
+const API_URL = process.env.API_URL || 'http://localhost:3001';
 
 const nextConfig = {
   reactStrictMode: true,
-  output: 'export',
   images: {
     unoptimized: true,
     remotePatterns: [
       { protocol: 'https', hostname: '**' },
     ],
   },
-  // En modo unificado, el frontend se sirve desde el mismo dominio
-  // No necesitamos rewrites porque API y frontend están en el mismo puerto
-  trailingSlash: true,
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${API_URL}/api/:path*`,
+      },
+      {
+        source: '/uploads/:path*',
+        destination: `${API_URL}/uploads/:path*`,
+      },
+    ];
+  },
 }
 
 module.exports = nextConfig
