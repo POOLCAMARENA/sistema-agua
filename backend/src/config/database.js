@@ -9,7 +9,7 @@ const pool = new Pool(
   process.env.DATABASE_URL
     ? {
         connectionString: process.env.DATABASE_URL,
-        ssl: true,
+        ssl: { rejectUnauthorized: false },
         max: 5,
         idleTimeoutMillis: 30000,
         connectionTimeoutMillis: 20000,
