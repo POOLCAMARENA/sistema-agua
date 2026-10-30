@@ -7,17 +7,19 @@ import api from '@/lib/axios';
 import { useAuthStore } from '@/lib/store';
 
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 5000;
+const RETRY_DELAYS = [5000, 15000, 30000];
 
-async function loginWithRetry(email: string, password: string, attempt = 1): Promise<any> {
+async function loginWithRetry(email: string, password: string, onRetry?: () => void, attempt = 0): Promise<any> {
   try {
     const response = await api.post('/auth/login', { email, password });
     return response.data;
   } catch (err: any) {
     const isNetworkError = !err.response && (err.code === 'ECONNABORTED' || err.code === 'ERR_NETWORK' || err.message?.includes('timeout'));
-    if (isNetworkError && attempt < MAX_RETRIES) {
-      await new Promise(r => setTimeout(r, RETRY_DELAY));
-      return loginWithRetry(email, password, attempt + 1);
+    const isWakeError = err.response?.status === 429 || err.response?.status === 503;
+    if ((isNetworkError || isWakeError) && attempt < MAX_RETRIES) {
+      onRetry?.();
+      await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt] || 30000));
+      return loginWithRetry(email, password, onRetry, attempt + 1);
     }
     throw err;
   }
@@ -39,12 +41,14 @@ export default function LoginPage() {
     setStatus('Conectando al servidor...');
 
     try {
-      const data = await loginWithRetry(email, password);
+      const data = await loginWithRetry(email, password, () =>
+        setStatus('El servidor se esta iniciando, reintentando...')
+      );
       setStatus('Sesion iniciada correctamente');
       setAuth(data.usuario, data.token);
       router.push('/dashboard');
     } catch (err: any) {
-      if (!err.response) {
+      if (!err.response || err.response?.status === 429 || err.response?.status === 503) {
         setError('El servidor esta iniciando, intente de nuevo en unos segundos');
       } else {
         setError(err.response?.data?.error || 'Error al iniciar sesion');
