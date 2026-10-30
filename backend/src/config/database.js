@@ -8,7 +8,13 @@ types.setTypeParser(NUMERIC_OID, (val) => parseFloat(val));
 const pool = new Pool(
   process.env.DATABASE_URL
     ? {
-        connectionString: process.env.DATABASE_URL,
+        host: 'pg-1ca1b46c-bancosfibrasnaturales-4ace.c.aivencloud.com',
+        port: 13022,
+        database: 'defaultdb',
+        user: 'avnadmin',
+        password: process.env.DATABASE_URL
+          ? decodeURIComponent(process.env.DATABASE_URL.split('://')[1].split('@')[0].split(':')[1] || '')
+          : process.env.DB_PASSWORD,
         ssl: { rejectUnauthorized: false },
         max: 5,
         idleTimeoutMillis: 30000,
