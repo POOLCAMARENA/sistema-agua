@@ -109,7 +109,13 @@ app.get('/api/health', async (req, res) => {
     await pool.queryWithRetry('SELECT 1');
     res.json({ status: 'OK', message: 'Sistema de Agua API funcionando', db: 'conectada' });
   } catch (error) {
-    res.status(503).json({ status: 'WARN', message: 'API funcionando pero base de datos no disponible', db: 'desconectada' });
+    console.error('[health] DB no disponible:', error.code || '', error.message);
+    res.status(503).json({
+      status: 'WARN',
+      message: 'API funcionando pero base de datos no disponible',
+      db: 'desconectada',
+      error: error.code || error.message,
+    });
   }
 });
 
